@@ -1,0 +1,15 @@
+{
+  "name": "babel-bot",
+  "version": "1.0.0",
+  "description": "A discord bot for translation",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Armond Willingham",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^8.5.0",
+    "typescript": "^4.5.4"
+  }
+}
