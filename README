@@ -1,0 +1,6 @@
+Setup
+
+Follow the docs to create a Google Cloud project for translation. https://cloud.google.com/translate/docs/setup
+
+Create a discord application on the Discord developer portal. https://discord.com/developers/applications
+Add a bot to the application, with admin permissions.

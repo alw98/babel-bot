@@ -1,0 +1,23 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": [
+    "@typescript-eslint"
+  ],
+  "extends": [
+    "eslint:recommended",
+    "google",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "rules": {
+    "linebreak-style": "off",
+    "object-curly-spacing": "off",
+    "indent": [
+      "error",
+      4
+    ],
+    "@typescript-eslint/no-var-requires": "off",
+    "require-jsdoc": "off"
+  }
+}
