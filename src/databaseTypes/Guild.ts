@@ -21,4 +21,23 @@ export interface TextChannel {
     name: string;
     /** Language code to use with google translate API */
     languageCode: string;
+    /** The name of the channel in english */
+    englishName: string;
+}
+
+export interface DBMessage {
+    /** The message text */
+    content: string;
+    /** Language code to use with google translate API */
+    languageCode: string;
+    /** The id as given by discord */
+    id: string;
+    /** The channel id */
+    channelId: string;
+    /** The guild id */
+    guildId: string;
+    /** Created on date */
+    createdOn: Date;
+    /** The name of the channel it was sent from, in English */
+    englishName: string;
 }

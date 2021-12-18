@@ -1,4 +1,4 @@
-import { Client, Guild, Message } from 'discord.js';
+import { Client, Guild, Message, MessageEmbed, TextChannel } from 'discord.js';
 import config from '../secrets/config.json';
 import { BotIntents } from './BotIntents';
 import { CategoryChannel } from './databaseTypes/Guild';
@@ -25,15 +25,20 @@ export class DiscordClient {
 		console.log('Discord client connected');
 	}
 
-	onMessageCreate = (msg: Message) => {
-		if (msg.author.bot) {
-			return;
-		}
-		if (this.checkForCommand(msg)) {
-			return;
-		}
-		if (this.checkForIntro(msg)) {
-			return;
+	onMessageCreate = async (msg: Message) => {
+		try {
+			if (msg.author.bot) {
+				return;
+			}
+			if (this.checkForCommand(msg)) {
+				return;
+			}
+			if (await this.checkForIntro(msg)) {
+				return;
+			}
+			await this.postSingleMessageToAllChannels(msg);
+		} catch (e) {
+			console.log(e);
 		}
 	}
 
@@ -48,10 +53,12 @@ export class DiscordClient {
 	}
 
 	checkForCommand(msg: Message): boolean {
+		if (msg.mentions.everyone) {
+			return false;
+		}
 		if (msg.mentions.has(this.client.user)) {
 			const text = msg.content;
 			if (text.includes('setIntro')) {
-				console.log('Setting intro channel.');
 				this.dbClient.setGuildsIntroChannel(msg.guildId, msg.channelId);
 			}
 			return true;
@@ -61,7 +68,6 @@ export class DiscordClient {
 
 	async checkForIntro(msg: Message): Promise<boolean> {
 		const isInIntro = await this.dbClient.isMessageInIntro(msg);
-
 		if (isInIntro) {
 			const language = await this.translationClient.getLanguage(msg.content);
 			const languageName = getLangNameFromCode(language).native;
@@ -86,7 +92,7 @@ export class DiscordClient {
 	}
 
 	async createNewChannel(guild: Guild, language: string) {
-		const existingChannel = await this.dbClient.getEnglishChannel(guild.id);
+		const englishChannel = await this.dbClient.getEnglishChannel(guild.id);
 		const languageName = getLangNameFromCode(language).native;
 
 		const newChannel = await guild.channels.create(languageName, {
@@ -98,22 +104,61 @@ export class DiscordClient {
 			id: newChannel.id,
 			languageCode: language,
 			textChannels: [],
+			englishName: englishChannel.name,
 		};
 
-		await existingChannel.textChannels.forEach(async (val) => {
+		for (let i = 0; i < englishChannel.textChannels.length; ++i) {
+			const val = englishChannel.textChannels[i];
 			const newName = await this.translationClient.translate(val.name, language, 'en');
 			const newTextChannel = await guild.channels.create(newName, {
 				type: 'GUILD_TEXT',
 				parent: newChannel,
-			});
+			}) as TextChannel;
 			newChannelDBEntry.textChannels.push({
 				id: newTextChannel.id,
 				name: newName,
 				languageCode: language,
+				englishName: val.englishName,
 			});
-		});
-
+			await this.postRecentMessagesToChannel(newTextChannel, language, val.englishName);
+		}
 		this.dbClient.addNewChannelToGuild(guild.id, newChannelDBEntry);
+	}
+
+	async postSingleMessageToAllChannels(msg: Message) {
+		const channelsToSendTo = await this.dbClient.getAllForeignChannels(msg.guildId, msg.channelId);
+		const fromLanguage = await this.dbClient.getLanguageOfMessage(msg);
+		for (let i = 0; i < channelsToSendTo.length; ++i) {
+			const val = channelsToSendTo[i];
+			const channel = this.client.channels.cache.get(val.id) as TextChannel;
+			const embed = await this.createEmbed(fromLanguage, val.languageCode, msg);
+			channel.send({ embeds: [embed] });
+		}
+		this.dbClient.storeMessage(msg, fromLanguage);
+	}
+
+	async postRecentMessagesToChannel(channel: TextChannel, language: string, englishName: string) {
+		const recentMessages = await this.dbClient.getRecentMessagesForChannel(channel.guildId, englishName);
+		for (let i = 0; i < recentMessages.length; ++i) {
+			const message = recentMessages[i];
+			const fromChannel = await this.client.channels.fetch(message.channelId) as TextChannel;
+			const embed = await this.createEmbed(
+				message.languageCode, language, await fromChannel.messages.fetch(message.id));
+			channel.send({ embeds: [embed] });
+		}
+	}
+
+	async createEmbed(fromLanguage: string, toLanguage: string, msg: Message) {
+		const embed = new MessageEmbed().setAuthor(msg.author.username, msg.author.displayAvatarURL());
+		const fromLanguageName = getLangNameFromCode(fromLanguage).native;
+		const toLanguageName = getLangNameFromCode(toLanguage).native;
+		const message = await this.translationClient.translate(msg.content, toLanguage, fromLanguage);
+		if (!message) return undefined;
+		embed.setFields({
+			name: fromLanguageName + ' -> ' + toLanguageName,
+			value: message,
+		});
+		return embed;
 	}
 
 	login() {
