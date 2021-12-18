@@ -15,9 +15,15 @@
     "object-curly-spacing": "off",
     "indent": [
       "error",
-      4
+      "tab"
     ],
     "@typescript-eslint/no-var-requires": "off",
-    "require-jsdoc": "off"
+    "require-jsdoc": "off",
+    "no-tabs": "off",
+    "max-len": [
+      "error",
+      120
+    ],
+    "no-invalid-this": "off"
   }
 }
